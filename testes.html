@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nutre Compare Pro — Testes</title>
+<style>
+/* mesma paleta Germinare do index.html */
+:root{--bg:#0E0D0C;--panel:#1B1917;--line:#2F2B27;--tx:#F2EDE8;--tx2:#A39A91;
+  --green:#2EAD64;--red:#E5484D}
+h1 span{color:#F07800}
+body{margin:0;background:var(--bg);color:var(--tx);padding:20px 16px;
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;font-size:14px}
+.wrap{max-width:900px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--tx2);margin:0 0 16px;line-height:1.6}
+#resumo{padding:14px 16px;border-radius:8px;font-size:17px;font-weight:700;margin-bottom:18px}
+#resumo.ok{background:#0B2416;color:#9BE3B8;border-left:4px solid var(--green)}
+#resumo.falha{background:#301213;color:#F7C1C1;border-left:4px solid var(--red)}
+h2{font-size:15px;margin:22px 0 8px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+.t{background:var(--panel);border-radius:7px;padding:9px 12px;margin-bottom:6px;
+  display:flex;gap:10px;align-items:baseline}
+.t .i{flex:0 0 auto}
+.t .d{color:var(--tx2);font-size:12.5px;margin-top:3px;font-variant-numeric:tabular-nums}
+.t.falhou{border:1px solid var(--red)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Testes das contas <span>·</span> Nutre Compare Pro</h1>
+<p class="sub">Esta página confere se as contas de <b>calculos.js</b> dão o resultado esperado.
+  Os valores esperados foram calculados à mão a partir das fórmulas. <b>Abra esta página sempre
+  que mudar uma conta, antes de publicar.</b><br>
+  Os testes usam um conjunto <b>fixo de dados de teste</b> (dados_teste.js), não a base real —
+  por isso trocar os dados nutricionais nunca quebra os testes.</p>
+<div id="resumo">rodando…</div>
+<div id="lista"></div>
+</div>
+
+<!-- dados_teste.js, e NÃO dados.js: as contas esperadas foram feitas à mão
+     com esses números fixos. Trocar a base real não afeta os testes. -->
+<script src="dados_teste.js"></script>
+<script src="calculos.js"></script>
+<script>
+const grupos=[]; let atual=null;
+function grupo(nome){atual={nome,testes:[]};grupos.push(atual)}
+/* fn devolve [passou, "detalhe do que foi comparado"] */
+function teste(nome,fn){
+  let r; try{r=fn()}catch(e){r=[false,"erro: "+e.message]}
+  atual.testes.push({nome,ok:!!r[0],det:r[1]});
+}
+const perto=(a,b,tol=1e-6)=>a!==null&&b!==null&&Math.abs(a-b)<=tol;
+const igual=(obtido,esperado,tol)=>[perto(obtido,esperado,tol),
+  `esperado ${esperado} · obtido ${obtido}`];
+const nd=(obtido)=>[obtido===null,`esperado N/D (null) · obtido ${obtido}`];
+
+/* ------------------------------------------------------------ */
+grupo("Formatação");
+teste("1234,5 vira 1.234,50",()=>{const s=fmt(1234.5);return[s==="1.234,50",`obtido "${s}"`]});
+teste("Dado ausente aparece como N/D",()=>{const s=fmt(null);return[s==="N/D",`obtido "${s}"`]});
+teste("Zero aparece como 0,00 (zero não é N/D)",()=>{const s=fmt(0);return[s==="0,00",`obtido "${s}"`]});
+teste("Moeda: R$ 2.200,00",()=>{const s=brl(2200);return[s==="R$ 2.200,00",`obtido "${s}"`]});
+teste("Zero negativo por arredondamento aparece como 0,00 (sem sinal)",()=>{
+  const s=fmt(-0.0001);return[s==="0,00",`obtido "${s}"`]});
+teste("Negativo de verdade mantém o sinal: -0,01",()=>{const s=fmt(-0.01);return[s==="-0,01",`obtido "${s}"`]});
+
+/* ------------------------------------------------------------ */
+grupo("Leitura do percentual digitado");
+const lido=(txt,esp)=>{const v=lerPercentual(txt);
+  return[esp===null?v===null:perto(v,esp),`"${txt}" → esperado ${esp} · obtido ${v}`]};
+teste("Vírgula decimal: 12,5 → 12,5",()=>lido("12,5",12.5));
+teste("Ponto decimal: 12.5 → 12,5",()=>lido("12.5",12.5));
+teste("Número inteiro: 30 → 30",()=>lido("30",30));
+teste("Com símbolo e espaços: ' 30 % ' → 30",()=>lido(" 30 % ",30));
+teste("Zero digitado é zero de verdade: 0 → 0",()=>lido("0",0));
+teste("Duas casas: 7,25 → 7,25",()=>lido("7,25",7.25));
+teste("Formato BR com milhar: 1.200,50 → 1200,5 (não vira 1,2)",()=>lido("1.200,50",1200.5));
+teste("Formato US com milhar: 1,200.50 → 1200,5",()=>lido("1,200.50",1200.5));
+teste("Campo vazio → não entende (NÃO vira zero)",()=>lido("",null));
+teste("Texto → não entende",()=>lido("abc",null));
+teste("Número com lixo: 12a → não entende",()=>lido("12a",null));
+teste("Dois separadores decimais: 1,2,3 → não entende",()=>lido("1,2,3",null));
+teste("Negativo é lido (a tela limita a 0 depois): -5 → -5",()=>lido("-5",-5));
+
+/* ------------------------------------------------------------ */
+grupo("Dado ausente nunca vira zero");
+teste("Cálcio do DDGS está vazio na base → null",()=>nd(get("DDGS","Cálcio").v));
+teste("Commodity inexistente → null",()=>nd(get("Trigo","Proteína Bruta").v));
+teste("Parâmetro inexistente → null",()=>nd(get("Milho","Vitamina X").v));
+teste("Custo por Cálcio do DDGS é recusado",()=>nd(custoPorNutriente("DDGS","Cálcio",1400).v));
+teste("Formulação com DDGS recusa somar Cálcio",()=>
+  nd(nutriFormulacao({"Milho":50,"DDGS":20},"Cálcio").v));
+teste("Formulação com DDGS em 0% soma Cálcio normalmente",()=>{
+  // 0,03 × 87,5% × 50% = 0,013125
+  return igual(nutriFormulacao({"Milho":50,"DDGS":0},"Cálcio").v,0.013125)});
+
+/* ------------------------------------------------------------ */
+grupo("Status e fonte de cada valor");
+/* Linha temporária com status por valor: 6º elemento = [{ok,fonte,...} por commodity].
+   Milho verificado com fonte; Sorgo marcado não verificado; demais sem registro. */
+function comLinhaTeste(fn){
+  const meta=COMS.map(()=>null);
+  meta[0]={ok:true,fonte:"Tabela X",link:"",data:"",obs:""};
+  meta[1]={ok:false,fonte:"A DEFINIR",link:"",data:"",obs:""};
+  P.push(["Parâmetro Teste","%","MS","Teste",COMS.map(()=>10),meta]);
+  try{return fn()}finally{P.pop()}
+}
+teste("Valor sem registro de fonte é tratado como provisório",()=>{
+  const d=get("Milho","Proteína Bruta"); return[d.prov===true,`prov=${d.prov}`]});
+teste("Valor verificado com fonte → não provisório, fonte disponível",()=>comLinhaTeste(()=>{
+  const d=get("Milho","Parâmetro Teste"); return[d.prov===false&&d.fonte==="Tabela X",`prov=${d.prov} fonte=${d.fonte}`]}));
+teste("Valor marcado como não verificado → provisório",()=>comLinhaTeste(()=>{
+  const d=get("Sorgo","Parâmetro Teste"); return[d.prov===true,`prov=${d.prov}`]}));
+teste("Custo com valor verificado: sem aviso de provisório e fonte no memorial",()=>comLinhaTeste(()=>{
+  const m=custoPorNutriente("Milho","Parâmetro Teste",1000).m;
+  const txt=JSON.stringify(m);
+  return[!txt.includes("PROVISÓRIO")&&txt.includes("Tabela X"),txt.slice(0,160)]}));
+teste("Preço limite só avisa 'provisório' se algum valor usado for provisório",()=>comLinhaTeste(()=>{
+  const ok=precoLimite("Milho","Milho","Parâmetro Teste",1000).m.avisos.join(" ");
+  const prov=precoLimite("Milho","Sorgo","Parâmetro Teste",1000).m.avisos.join(" ");
+  return[!ok.includes("PROVISÓRIO")&&prov.includes("PROVISÓRIO"),`só verificado: "${ok.slice(0,50)}…" | com provisório: tem aviso=${prov.includes("PROVISÓRIO")}`]}));
+
+/* ------------------------------------------------------------ */
+grupo("Custo por nutriente");
+teste("Farelo de Soja, PB 51,5%, R$ 2.200 → R$ 4,27/kg de PB",()=>
+  // 51,5% = 515 kg de PB por tonelada; 2200 / 515
+  igual(custoPorNutriente("Farelo de Soja","Proteína Bruta",2200).v,2200/515));
+teste("DDGS, PB 30%, R$ 1.400 → R$ 4,67/kg de PB",()=>
+  igual(custoPorNutriente("DDGS","Proteína Bruta",1400).v,1400/300));
+teste("Farelo de Soja, EM Aves 2,55 Mcal/kg → R$ 0,86/Mcal",()=>
+  // 2,55 Mcal/kg = 2.550 Mcal por tonelada; 2200 / 2550
+  igual(custoPorNutriente("Farelo de Soja","Energia Metabolizável - Aves",2200).v,2200/2550));
+teste("Sem preço (0) → não calcula",()=>nd(custoPorNutriente("Milho","Proteína Bruta",0).v));
+teste("PDR (% da PB) não tem custo por kg → não calcula",()=>
+  nd(custoPorNutriente("Milho","PDR",1200).v));
+
+/* ------------------------------------------------------------ */
+grupo("Preço limite");
+teste("Soja R$ 2.200 como referência, DDGS em PB → R$ 1.281,55",()=>
+  // 2200 × (30 / 51,5)
+  igual(precoLimite("Farelo de Soja","DDGS","Proteína Bruta",2200).v,2200*30/51.5));
+teste("Invertido: DDGS R$ 1.400 como referência, Soja em PB → R$ 2.403,33",()=>
+  igual(precoLimite("DDGS","Farelo de Soja","Proteína Bruta",1400).v,1400*51.5/30));
+teste("Milho R$ 1.200 como referência, Sorgo em EM Aves → R$ 1.129,41",()=>
+  // 1200 × (3,20 / 3,40)
+  igual(precoLimite("Milho","Sorgo","Energia Metabolizável - Aves",1200).v,1200*3.2/3.4));
+teste("Critério com dado ausente (Cálcio do DDGS) → não calcula",()=>
+  nd(precoLimite("Farelo de Soja","DDGS","Cálcio",2200).v));
+teste("Referência sem preço → não calcula",()=>
+  nd(precoLimite("Farelo de Soja","DDGS","Proteína Bruta",0).v));
+teste("Aviso de 'não é preço justo' continua no memorial",()=>{
+  const av=precoLimite("Farelo de Soja","DDGS","Proteína Bruta",2200).m.avisos.join(" ");
+  return[av.includes("não um preço justo"),av]});
+
+/* ------------------------------------------------------------ */
+grupo("Semáforo (faixas de preço)");
+teste("Soja × DDGS tem faixa cadastrada",()=>{const f=faixa("Farelo de Soja","DDGS");
+  return[!!f&&f.verde===75&&f.amarelo===82,JSON.stringify(f)]});
+teste("DDGS × Soja (invertido) não tem faixa → sem semáforo",()=>{const f=faixa("DDGS","Farelo de Soja");
+  return[f===null,JSON.stringify(f)]});
+teste("Milho × DDGS não tem faixa → sem semáforo",()=>{const f=faixa("Milho","DDGS");
+  return[f===null,JSON.stringify(f)]});
+
+/* ------------------------------------------------------------ */
+grupo("Conversão matéria seca → matéria natural");
+teste("PB do Farelo de Soja: 51,5 × 88,5% = 45,5775 na matéria natural",()=>
+  igual(toMN("Farelo de Soja","Proteína Bruta").v,51.5*88.5/100));
+teste("Matéria Seca já está em MN → não converte",()=>
+  igual(toMN("Farelo de Soja","Matéria Seca").v,88.5));
+teste("PB de 50% Milho + 50% Soja = 26,945% (convertendo antes de somar)",()=>
+  // 9,5 × 0,875 × 0,5 + 51,5 × 0,885 × 0,5 = 4,15625 + 22,78875
+  igual(nutriFormulacao({"Milho":50,"Farelo de Soja":50},"Proteína Bruta").v,26.945));
+
+/* ------------------------------------------------------------ */
+grupo("PDR / PNDR ponderados pela proteína");
+teste("PNDR de 50% Milho + 50% Soja = 36,54% da PB",()=>{
+  // Milho aporta 4,15625 de PB com PNDR 45; Soja aporta 22,78875 com PNDR 35
+  const esp=(45*4.15625+35*22.78875)/(4.15625+22.78875);
+  return igual(nutriFormulacao({"Milho":50,"Farelo de Soja":50},"PNDR").v,esp)});
+teste("…e NÃO é a média pela massa (40%)",()=>{
+  const v=nutriFormulacao({"Milho":50,"Farelo de Soja":50},"PNDR").v;
+  return[!perto(v,40,0.01),`obtido ${v} (média pela massa daria 40)`]});
+
+/* ------------------------------------------------------------ */
+grupo("Custo da formulação");
+teste("55% Milho + 20% Soja + 10% DDGS + 15% Sorgo = R$ 1.405,00/t",()=>
+  // 1200×0,55 + 2200×0,20 + 1400×0,10 + 1100×0,15 = 660 + 440 + 140 + 165
+  igual(custoFormulacao({"Milho":55,"Farelo de Soja":20,"DDGS":10,"Sorgo":15},PRECOS_INI).v,1405));
+teste("Ingrediente sem preço → custo não calculado (não ignora calado)",()=>
+  nd(custoFormulacao({"Milho":50,"DDGS":10},{...PRECOS_INI,"DDGS":0}).v));
+teste("Soma parcial (30% soja + 30% DDGS) = custo parcial R$ 1.080,00",()=>
+  igual(custoFormulacao({"Farelo de Soja":30,"DDGS":30},PRECOS_INI).v,2200*0.3+1400*0.3));
+
+/* ------------------------------------------------------------ */
+grupo("Relações de substituição (sliders vinculados)");
+const ING2=["Milho","Farelo de Soja"];
+const rel=(ratio,on=true)=>[{de:"Milho",para:"Farelo de Soja",ratio,on}];
+teste("Fator 1: Milho 50→55 tira 5 da Soja (15→10), total igual",()=>{
+  const f={"Milho":50,"Farelo de Soja":15}; moverVinculado(f,"Milho",55,rel(1),ING2);
+  return[f["Milho"]===55&&f["Farelo de Soja"]===10,JSON.stringify(f)]});
+teste("Fator 1: Milho 50→40 devolve 10 à Soja (15→25)",()=>{
+  const f={"Milho":50,"Farelo de Soja":15}; moverVinculado(f,"Milho",40,rel(1),ING2);
+  return[f["Milho"]===40&&f["Farelo de Soja"]===25,JSON.stringify(f)]});
+teste("Fator 1,6: +1 de Milho tira 1,6 da Soja (total cai 0,6)",()=>{
+  const f={"Milho":50,"Farelo de Soja":15}; moverVinculado(f,"Milho",51,rel(1.6),ING2);
+  return[f["Milho"]===51&&f["Farelo de Soja"]===13.4,JSON.stringify(f)]});
+teste("Sentido inverso usa o recíproco: fator 2, +1 de Soja tira 0,5 de Milho",()=>{
+  const f={"Milho":50,"Farelo de Soja":20}; moverVinculado(f,"Farelo de Soja",21,rel(2),ING2);
+  return[f["Farelo de Soja"]===21&&f["Milho"]===49.5,JSON.stringify(f)]});
+teste("Limite do parceiro: Soja só tem 2, Milho sobe só até 52",()=>{
+  const f={"Milho":50,"Farelo de Soja":2}; moverVinculado(f,"Milho",60,rel(1),ING2);
+  return[f["Milho"]===52&&f["Farelo de Soja"]===0,JSON.stringify(f)]});
+teste("Limite de 100% no total: fator 0,5 com total já em 100 não deixa subir",()=>{
+  const f={"Milho":60,"Farelo de Soja":40}; moverVinculado(f,"Milho",70,rel(0.5),ING2);
+  return[f["Milho"]===60&&f["Farelo de Soja"]===40,JSON.stringify(f)]});
+teste("Relação desativada: Milho se move sozinho",()=>{
+  const f={"Milho":50,"Farelo de Soja":15}; moverVinculado(f,"Milho",70,rel(1,false),ING2);
+  return[f["Milho"]===70&&f["Farelo de Soja"]===15,JSON.stringify(f)]});
+teste("Ingrediente fora da seleção: relação ignorada",()=>{
+  const f={"Milho":50,"Farelo de Soja":15}; moverVinculado(f,"Milho",60,rel(1),["Milho"]);
+  return[f["Milho"]===60&&f["Farelo de Soja"]===15,JSON.stringify(f)]});
+teste("Cadeia não propaga: Milho↔Soja e Soja↔DDGS, mover Milho não mexe no DDGS",()=>{
+  const ings=["Milho","Farelo de Soja","DDGS"];
+  const rs=[{de:"Milho",para:"Farelo de Soja",ratio:1,on:true},
+            {de:"Farelo de Soja",para:"DDGS",ratio:1,on:true}];
+  const f={"Milho":40,"Farelo de Soja":20,"DDGS":10}; moverVinculado(f,"Milho",45,rs,ings);
+  return[f["Milho"]===45&&f["Farelo de Soja"]===15&&f["DDGS"]===10,JSON.stringify(f)]});
+teste("Slider não passa de 100 nem fica negativo",()=>{
+  const f={"Milho":50}; moverVinculado(f,"Milho",150,[],["Milho"]); const a=f["Milho"];
+  moverVinculado(f,"Milho",-10,[],["Milho"]);
+  return[a===100&&f["Milho"]===0,`150 → ${a}; -10 → ${f["Milho"]}`]});
+teste("Total da formulação soma só os ingredientes selecionados",()=>
+  igual(totalDe({"Milho":55,"Farelo de Soja":20,"DDGS":10},["Milho","Farelo de Soja"]),75));
+
+/* ------------------------------------------------------------ */
+grupo("Ingrediente sem perfil nutricional (Núcleo + Ureia)");
+const NU="Núcleo + Ureia";
+teste("Sem avisar o sistema, ingrediente desconhecido bloqueia a soma (N/D)",()=>
+  nd(nutriFormulacao({"Milho":50,[NU]:5},"Proteína Bruta").v));
+teste("Declarado como sem perfil: fica fora da soma, com aviso explícito",()=>{
+  // só o Milho conta: 9,5 × 0,875 × 0,5 = 4,15625
+  const r=nutriFormulacao({"Milho":50,[NU]:5},"Proteína Bruta",[NU]);
+  const av=r.m.avisos.join(" ");
+  return[perto(r.v,4.15625)&&av.includes(NU)&&av.includes("fora da soma"),`valor=${r.v} · aviso="${av.slice(0,70)}…"`]});
+teste("PNDR também ignora o ingrediente sem perfil, com aviso",()=>{
+  const esp=(45*4.15625+35*22.78875)/(4.15625+22.78875);
+  const r=nutriFormulacao({"Milho":50,"Farelo de Soja":50,[NU]:5},"PNDR",[NU]);
+  return[perto(r.v,esp)&&r.m.avisos.join(" ").includes(NU),`esperado ${esp} · obtido ${r.v}`]});
+teste("Custo: declarado fora do custo não zera nem invalida a conta",()=>{
+  // 1200 × 0,50 = 600; Núcleo + Ureia não entra
+  const r=custoFormulacao({"Milho":50,[NU]:5},PRECOS_INI,[NU]);
+  return[perto(r.v,600)&&JSON.stringify(r.m.passos).includes("fora do custo"),`custo=${r.v}`]});
+teste("Custo: sem declarar, ingrediente sem preço continua invalidando",()=>
+  nd(custoFormulacao({"Milho":50,[NU]:5},PRECOS_INI).v));
+
+/* ------------------------------------------------------------ */
+grupo("Completar automaticamente (menor custo mantendo o nutriente)");
+/* PB na matéria natural, por ponto de inclusão (dados de teste):
+   Milho 9,5×0,875 = 8,3125 · Sorgo 10,5×0,87 = 9,135 · DDGS 30×0,89 = 26,7 · Soja 51,5×0,885 = 45,5775
+   Original: Milho 60 + Soja 20 + DDGS 15 + N+U 5 = 100
+   PB original = 60×0,083125 + 20×0,455775 + 15×0,267 = 4,9875 + 9,1155 + 4,005 = 18,108 */
+const ORIG={"Milho":60,"Farelo de Soja":20,"DDGS":15,[NU]:5};
+const otim=(extra)=>completarPorCusto(Object.assign({fOrig:ORIG,
+  fAtual:{"Milho":60,"Farelo de Soja":12,"DDGS":15,[NU]:5},
+  ings:["Milho","Farelo de Soja","DDGS",NU],travados:["Farelo de Soja"],semPerfil:[NU],
+  precos:PRECOS_INI,nutriente:"Proteína Bruta",tol:0},extra||{}));
+const pbDe=f=>nutriFormulacao(f,"Proteína Bruta",[NU]).v;
+teste("Meta exata, 2 livres: Soja travada em 12 → Milho 51,79 e DDGS 31,21",()=>{
+  /* Soja fixa aporta 12×0,455775 = 5,4693. Livres somam 83 e precisam aportar 12,6387:
+     0,083125m + 0,267d = 12,6387 e m + d = 83 → d = 5,739325/0,183875 = 31,2132; m = 51,7868 */
+  const r=otim(); const f=r.f||{};
+  return[perto(f["Milho"],51.79,0.011)&&perto(f["DDGS"],31.21,0.011)&&f["Farelo de Soja"]===12&&f[NU]===5,
+    JSON.stringify(f)]});
+teste("…o total fecha em 100 e a PB fica igual à original (18,11)",()=>{
+  const f=otim().f; const s=totalDe(f,Object.keys(f));
+  return[perto(s,100,0.001)&&perto(pbDe(f),18.108,0.01),`total=${s} · PB=${pbDe(f)}`]});
+teste("Tolerância de 1 ponto: escolhe a mais barata → Milho 57,23 e DDGS 25,77",()=>{
+  /* Milho (R$ 1.200) é mais barato que DDGS (R$ 1.400): a solução barata usa o mínimo de DDGS,
+     ou seja, PB no piso 17,108. 0,183875d = 11,6387 − 6,899375 → d = 25,7747; m = 57,2253 */
+  const f=otim({tol:1}).f||{};
+  return[perto(f["Milho"],57.23,0.011)&&perto(f["DDGS"],25.77,0.011),JSON.stringify(f)]});
+teste("…e a PB obtida fica dentro da tolerância (entre 17,11 e 19,11)",()=>{
+  const v=pbDe(otim({tol:1}).f); return[v>=17.108-0.01&&v<=19.108+0.01,`PB=${v}`]});
+teste("3 livres: prefere Sorgo ao Milho (mais barato e mais proteico) → Sorgo 54,21, DDGS 28,79, Milho 0",()=>{
+  /* Sorgo+DDGS: 0,09135s + 0,267d = 12,6387, s + d = 83 → d = 5,05665/0,17565 = 28,788; s = 54,212
+     custo 54,212×11 + 28,788×14 = 999,36 < Milho+DDGS 1.058,43. Milho+Sorgo não alcança a PB. */
+  const f=completarPorCusto({fOrig:ORIG,fAtual:{"Milho":60,"Sorgo":0,"Farelo de Soja":12,"DDGS":15,[NU]:5},
+    ings:["Milho","Sorgo","Farelo de Soja","DDGS",NU],travados:["Farelo de Soja"],semPerfil:[NU],
+    precos:PRECOS_INI,nutriente:"Proteína Bruta",tol:0}).f||{};
+  return[perto(f["Sorgo"],54.21,0.011)&&perto(f["DDGS"],28.79,0.011)&&f["Milho"]===0,JSON.stringify(f)]});
+teste("Sem solução (só Milho livre): não devolve formulação e explica a faixa possível",()=>{
+  const r=otim({travados:["Farelo de Soja","DDGS"]});
+  return[r.f===null&&/fica em/.test(r.m.blk||""),r.m.blk]});
+teste("Um ingrediente livre que resolve sozinho: nada travado mudou → Milho volta a 60",()=>{
+  const r=completarPorCusto({fOrig:ORIG,fAtual:{"Milho":10,"Farelo de Soja":20,"DDGS":15,[NU]:5},
+    ings:["Milho","Farelo de Soja","DDGS",NU],travados:["Farelo de Soja","DDGS"],semPerfil:[NU],
+    precos:PRECOS_INI,nutriente:"Proteína Bruta",tol:0});
+  return[!!r.f&&perto(r.f["Milho"],60,0.001),JSON.stringify(r.f)]});
+teste("Reaplicar sobre um resultado já arredondado continua valendo (folga de 0,005 ponto)",()=>{
+  /* resultado do 1º teste (Milho 51,79 / DDGS 31,21) com o DDGS agora travado: só o Milho é livre.
+     Por causa do arredondamento a 2 casas, a PB fica a ~0,0004 da meta — tem que ser aceito. */
+  const r=otim({fAtual:{"Milho":0,"Farelo de Soja":12,"DDGS":31.21,[NU]:5},travados:["Farelo de Soja","DDGS"]});
+  return[!!r.f&&perto(r.f["Milho"],51.79,0.001),r.f?JSON.stringify(r.f):r.m.blk]});
+teste("Ingrediente livre sem preço: recusa (não otimiza custo no escuro)",()=>{
+  const r=otim({precos:{...PRECOS_INI,"DDGS":0}});
+  return[r.f===null&&/preço/i.test(r.m.blk||""),r.m.blk]});
+teste("Travados somam mais que o total: recusa",()=>{
+  const r=otim({fAtual:{"Milho":0,"Farelo de Soja":98,"DDGS":0,[NU]:5}});
+  return[r.f===null&&/passam do total/.test(r.m.blk||""),r.m.blk]});
+teste("Tudo travado: recusa com orientação",()=>{
+  const r=otim({travados:["Milho","Farelo de Soja","DDGS"]});
+  return[r.f===null&&/destrave/i.test(r.m.blk||""),r.m.blk]});
+teste("Não altera a formulação recebida (devolve uma nova)",()=>{
+  const atual={"Milho":60,"Farelo de Soja":12,"DDGS":15,[NU]:5};
+  otim({fAtual:atual}); return[atual["Milho"]===60&&atual["DDGS"]===15,JSON.stringify(atual)]});
+
+/* ------------------------------------------------------------ */
+grupo("Ajuste com dois critérios (PB + energia)");
+/* Energia de aves na matéria natural, por ponto de inclusão (dados de teste):
+   Milho 3,40×0,875 = 2,975 · Sorgo 3,20×0,87 = 2,784 · DDGS 2,80×0,89 = 2,492 · Soja 2,55×0,885 = 2,25675
+   EM original = 60×0,02975 + 20×0,0225675 + 15×0,02492 = 1,785 + 0,45135 + 0,3738 = 2,61015
+   Com Soja travada em 12 e Milho + DDGS = 83 (d = pontos de DDGS):
+     PB(d) = 12,368675 + 0,183875·d      → igual à original em d = 31,2132
+     EM(d) = 2,74006 − 0,00483·d         → igual à original em d = 26,8965
+   As duas metas pedem quantidades DIFERENTES de DDGS: não dá para acertar as duas. */
+const EM="Energia Metabolizável - Aves";
+const otim2=(tPB,tEM,extra)=>otim(Object.assign({nutriente:undefined,tol:undefined,
+  criterios:[{nutriente:"Proteína Bruta",tol:tPB},{nutriente:EM,tol:tEM}]},extra||{}));
+const emDe=f=>nutriFormulacao(f,EM,[NU]).v;
+teste("Energia original dos dados de teste = 2,61015 Mcal/kg",()=>igual(emDe(ORIG),2.61015,1e-9));
+teste("Folga larga (PB ±1, EM ±0,05): mais barata = Milho 57,23 / DDGS 25,77",()=>{
+  /* PB aceita d de 25,7747 a 36,6517; EM aceita d de 16,5445 a 37,2484. Milho é mais barato → menor d. */
+  const f=otim2(1,0.05).f||{};
+  return[perto(f["Milho"],57.23,0.011)&&perto(f["DDGS"],25.77,0.011),JSON.stringify(f)]});
+teste("Folga apertada (PB ±0,5, EM ±0,01): as duas tolerâncias trabalham → Milho 54,51 / DDGS 28,49",()=>{
+  /* PB aceita d de 28,4939 a 33,9325; EM aceita d de 24,8261 a 28,9669 → sobra só 28,4939 a 28,9669.
+     Mais barata = menor d = 28,4939 (PB no piso 17,608; EM = 2,6024, dentro de ±0,01). */
+  const r=otim2(0.5,0.01), f=r.f||{};
+  return[perto(f["Milho"],54.51,0.011)&&perto(f["DDGS"],28.49,0.011)&&
+    perto(pbDe(f),17.608,0.01)&&Math.abs(emDe(f)-2.61015)<=0.0105,
+    `${JSON.stringify(f)} · PB=${r.f?pbDe(f):"-"} · EM=${r.f?emDe(f):"-"}`]});
+teste("Sem solução (PB ±0,3, EM ±0,005): recusa e mostra o mais perto possível",()=>{
+  /* PB aceita d de 29,58 a 32,84; EM aceita d de 25,86 a 27,93 → as faixas não se encontram. */
+  const r=otim2(0.3,0.005);
+  return[r.f===null&&/fica em/.test(r.m.blk||"")&&(r.m.blk||"").includes(EM),r.m.blk]});
+teste("Modo 'mais parecida' (PB ±1, EM ±0,05): equilibra os dois → Milho 53,27 / DDGS 29,73",()=>{
+  /* Entre d = 26,8965 e 31,2132: afastamento da PB = 0,183875·(31,2132 − d) ÷ 1
+     e da EM = 0,00483·(d − 26,8965) ÷ 0,05 = 0,0966·(d − 26,8965).
+     Iguais em d = 8,337527 ÷ 0,280475 = 29,7264 → cada um usa 27,3% da própria tolerância. */
+  const f=otim2(1,0.05,{modo:"proximo"}).f||{};
+  return[perto(f["Milho"],53.27,0.011)&&perto(f["DDGS"],29.73,0.011),JSON.stringify(f)]});
+teste("Modo 'mais parecida' com um critério só: acerta a PB exata (51,79 / 31,21)",()=>{
+  const f=otim({modo:"proximo",tol:1}).f||{};
+  return[perto(f["Milho"],51.79,0.011)&&perto(f["DDGS"],31.21,0.011),JSON.stringify(f)]});
+const I3=["Milho","Sorgo","Farelo de Soja","DDGS",NU];
+const AT3={"Milho":60,"Sorgo":0,"Farelo de Soja":12,"DDGS":15,[NU]:5};
+teste("3 livres, dois critérios exatos: impossível (o Sorgo teria de ser negativo)",()=>{
+  /* Resolvendo total, PB e EM exatos: DDGS = 31,76 e Sorgo = −12,31 → não existe. */
+  const r=otim2(0,0,{ings:I3,fAtual:AT3});
+  return[r.f===null,r.m.blk]});
+teste("3 livres (PB ±0,5, EM ±0,01): resultado é o mais barato — conferido por força bruta",()=>{
+  /* Conferência independente: varre Sorgo e DDGS de 0,05 em 0,05 e guarda o menor custo que
+     cabe nas duas tolerâncias. O ajuste tem de dar custo igual ou menor (ele não usa grade). */
+  const r=otim2(0.5,0.01,{ings:I3,fAtual:AT3}); if(!r.f) return[false,r.m.blk];
+  const aP={"Milho":0.083125,"Sorgo":0.09135,"DDGS":0.267}, aE={"Milho":0.02975,"Sorgo":0.02784,"DDGS":0.02492};
+  let melhor=Infinity;
+  for(let s=0;s<=83.0001;s+=0.05) for(let d=0;d<=83.0001-s;d+=0.05){const mi=83-s-d;
+    const pb=5.4693+aP.Milho*mi+aP.Sorgo*s+aP.DDGS*d, em=0.27081+aE.Milho*mi+aE.Sorgo*s+aE.DDGS*d;
+    if(Math.abs(pb-18.108)<=0.5&&Math.abs(em-2.61015)<=0.01){const c=12*mi+11*s+14*d; if(c<melhor) melhor=c}}
+  const f=r.f, custo=12*f["Milho"]+11*f["Sorgo"]+14*f["DDGS"], tot=totalDe(f,I3);
+  const ok=perto(tot,100,0.001)&&Math.abs(pbDe(f)-18.108)<=0.51&&Math.abs(emDe(f)-2.61015)<=0.0105&&custo<=melhor+0.05;
+  return[ok,`ajuste: ${JSON.stringify(f)} custo dos livres ${custo.toFixed(2)} · força bruta ${melhor.toFixed(2)} · PB ${pbDe(f).toFixed(3)} · EM ${emDe(f).toFixed(4)}`]});
+teste("PDR/PNDR não podem ser critério (são fração da proteína)",()=>{
+  const r=otim({nutriente:undefined,tol:undefined,criterios:[{nutriente:"PNDR",tol:1}]});
+  return[r.f===null&&/fração da proteína/.test(r.m.blk||""),r.m.blk]});
+teste("Mesmo parâmetro nos dois critérios: recusa",()=>{
+  const r=otim({nutriente:undefined,tol:undefined,criterios:[{nutriente:"Proteína Bruta",tol:1},{nutriente:"Proteína Bruta",tol:2}]});
+  return[r.f===null&&/dois critérios/.test(r.m.blk||""),r.m.blk]});
+
+grupo("Comparação para troca de ingrediente (aba Substituições)");
+const troca=(de,para,p,dir,lim)=>compararTroca(de,para,[{p,dir}],lim).itens[0];
+teste("Soja → DDGS, PB (mais é melhor): 30 − 51,5 = −21,5 (−41,75%) → desvantagem",()=>{
+  // (30 − 51,5) / 51,5 × 100 = −41,7475...
+  const it=troca("Farelo de Soja","DDGS","Proteína Bruta",1);
+  return[it.tipo==="desvantagem"&&perto(it.dif,-21.5)&&perto(it.difPct,-41.747573,1e-5),JSON.stringify(it)]});
+teste("Far. Algodão → Soja, FB (menos é melhor): 4 − 14 = −10 (−71,43%) → vantagem",()=>{
+  const it=troca("Farelo de Algodão","Farelo de Soja","Fibra Bruta",-1);
+  return[it.tipo==="vantagem"&&perto(it.difPct,-71.428571,1e-5),JSON.stringify(it)]});
+teste("Soja → DDGS, EE (só informar): 2 → 9,5 (+375%) → neutro",()=>{
+  const it=troca("Farelo de Soja","DDGS","Extrato Etéreo",0);
+  return[it.tipo==="neutro"&&perto(it.difPct,375),JSON.stringify(it)]});
+teste("Milho → Sorgo, NDT: 84 − 88 = −4,55% → parecido (abaixo de 10%)",()=>{
+  const it=troca("Milho","Sorgo","NDT",1);
+  return[it.tipo==="similar"&&perto(it.difPct,-4.545454,1e-5),JSON.stringify(it)]});
+teste("Milho → Sorgo, NDT com limiar 4% → desvantagem",()=>{
+  const it=troca("Milho","Sorgo","NDT",1,4);
+  return[it.tipo==="desvantagem",JSON.stringify(it)]});
+teste("Milho → Sorgo, FB (menos é melhor): 2,5 → 2,8 = +12% → desvantagem",()=>{
+  const it=troca("Milho","Sorgo","Fibra Bruta",-1);
+  return[it.tipo==="desvantagem"&&perto(it.difPct,12),JSON.stringify(it)]});
+teste("Soja → DDGS, Cálcio: DDGS está N/D → item sem dado, nunca zero",()=>{
+  const it=troca("Farelo de Soja","DDGS","Cálcio",1);
+  return[it.tipo==="nd"&&it.dif===null&&it.b===null&&/N\/D/.test(it.motivo),JSON.stringify(it)]});
+
+/* ================= mostrar ================= */
+let ok=0,tot=0,h="";
+grupos.forEach(g=>{
+  h+=`<h2>${g.nome}</h2>`;
+  g.testes.forEach(t=>{tot++; if(t.ok) ok++;
+    h+=`<div class="t ${t.ok?"":"falhou"}"><span class="i">${t.ok?"✅":"❌"}</span>
+      <div><div>${t.nome}</div><div class="d">${t.det}</div></div></div>`});
+});
+document.getElementById("lista").innerHTML=h;
+const r=document.getElementById("resumo");
+r.className=ok===tot?"ok":"falha";
+r.textContent=ok===tot?`✅ ${tot} de ${tot} testes passaram`
+  :`❌ ${tot-ok} de ${tot} testes FALHARAM — não publique até corrigir`;
+document.title=`${ok===tot?"OK":"FALHOU"} ${ok}/${tot} — Testes`;
+</script>
+</body>
+</html>
