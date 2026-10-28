@@ -377,6 +377,21 @@ teste("Mesmo parâmetro nos dois critérios: recusa",()=>{
   const r=otim({nutriente:undefined,tol:undefined,criterios:[{nutriente:"Proteína Bruta",tol:1},{nutriente:"Proteína Bruta",tol:2}]});
   return[r.f===null&&/dois critérios/.test(r.m.blk||""),r.m.blk]});
 
+grupo("Preço: saco ↔ tonelada");
+teste("R$ 72,00 o saco de 60 kg → R$ 1.200,00/t",()=>
+  // 1.000 kg / 60 kg = 16,667 sacos por tonelada; 72 × 16,667 = 1.200
+  igual(precoTonDeSaco(72,60),1200));
+teste("R$ 2.200,00/t em saco de 50 kg → R$ 110,00 o saco",()=>
+  // 2.200 × 50 / 1.000 = 110
+  igual(precoSacoDeTon(2200,50),110));
+teste("Ida e volta: R$ 1.750/t → saco de 50 kg → tonelada = R$ 1.750",()=>
+  igual(precoTonDeSaco(precoSacoDeTon(1750,50),50),1750));
+teste("Peso do saco zero → N/D (não divide por zero)",()=>nd(precoTonDeSaco(72,0)));
+teste("Peso do saco vazio → N/D",()=>nd(precoSacoDeTon(1200,null)));
+teste("Preço vazio → N/D, não zero",()=>nd(precoTonDeSaco(null,60)));
+teste("Preço zero (sem cotação) continua zero nas duas unidades",()=>
+  [precoTonDeSaco(0,60)===0&&precoSacoDeTon(0,50)===0,"0 → 0"]);
+
 grupo("Comparação para troca de ingrediente (aba Substituições)");
 const troca=(de,para,p,dir,lim)=>compararTroca(de,para,[{p,dir}],lim).itens[0];
 teste("Soja → DDGS, PB (mais é melhor): 30 − 51,5 = −21,5 (−41,75%) → desvantagem",()=>{

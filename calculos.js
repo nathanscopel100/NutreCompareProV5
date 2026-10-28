@@ -69,6 +69,20 @@ function fmt(x,c=2){
 }
 function brl(x,c=2){return x===null||x===undefined||isNaN(x)?"N/D":"R$ "+fmt(x,c)}
 
+/* ================= PREÇO: SACO ↔ TONELADA =================
+   Todas as contas usam R$/tonelada. O saco é só a forma de digitar/exibir.
+   R$/t = R$/saco × 1.000 / kg do saco   ·   R$/saco = R$/t × kg do saco / 1.000
+   Preço ou peso ausente/inválido → null (N/D), nunca zero.                  */
+function precoValido(x){return x!==null&&x!==undefined&&isFinite(x)&&x>=0}
+function precoTonDeSaco(precoSaco,kgSaco){
+  if(!precoValido(precoSaco)||!precoValido(kgSaco)||kgSaco<=0) return null;
+  return precoSaco*1000/kgSaco;
+}
+function precoSacoDeTon(precoTon,kgSaco){
+  if(!precoValido(precoTon)||!precoValido(kgSaco)||kgSaco<=0) return null;
+  return precoTon*kgSaco/1000;
+}
+
 /* ================= CUSTO POR NUTRIENTE ================= */
 function custoPorNutriente(com,p,preco){
   const d=get(com,p);
