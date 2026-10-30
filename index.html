@@ -112,6 +112,8 @@ details.sub2>summary:hover{color:var(--marca-clara)}
 .chip:hover{border-color:var(--tx2)}
 .chip.on{background:var(--marca-fundo);border-color:var(--marca);color:var(--marca-clara);font-weight:600}
 .chip.p{font-size:12px;padding:5px 11px}
+.chip.todos{font-weight:600}
+.chip.todos:not(.on){color:var(--tx)}
 /* bars */
 .bars{margin-bottom:17px}
 .bar{display:flex;align-items:center;margin-bottom:6px}
@@ -140,38 +142,50 @@ button.sec:hover{background:var(--panel);border-color:var(--marca)}
 #tBase th:first-child,#tBase td:first-child{position:sticky;left:0;background:var(--panel2);z-index:1}
 #tBase td.cel{cursor:pointer}
 #tBase td.cel:hover{background:var(--marca-fundo)}
-/* ---- cotações na lateral: chave saco/tonelada e peso do saco ---- */
+/* ---- cotações na lateral: chave saco/tonelada (só milho e sorgo) ---- */
 .unid{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:0 0 4px}
 .unid button{flex:1;background:var(--campo);color:var(--tx2);border-radius:0;padding:8px;font-weight:600}
 .unid button:hover{background:var(--panel)}
 .unid button.on{background:var(--marca);color:var(--marca-tx)}
-.precoLinha{display:flex;gap:6px;align-items:center}
-.precoLinha input.pr{flex:1;min-width:0}
-.precoLinha .kg{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--tx2);white-space:nowrap}
-.precoLinha input.kgs{width:54px;padding:8px 6px}
 .conv{font-size:11.5px;color:var(--tx2);margin-top:3px;font-variant-numeric:tabular-nums}
 
-/* ---- aba Mapa de Substituições: mapa mental ----
-   No centro, o ingrediente que sai; em volta, os que podem entrar. Tocar num
-   deles abre "quando usar", vantagens e desvantagens embaixo do mapa.
-   As linhas são desenhadas por desenharLinhas() depois que a tela monta. */
+/* ---- aba Mapa de Substituições: mapa mental de fluxo ----
+   Três colunas, da esquerda para a direita: o ingrediente que SAI → o nível
+   (aconselhável / com restrições / não recomendado) → os que podem ENTRAR.
+   No celular vira de cima para baixo. Tocar num ingrediente abre "quando usar",
+   vantagens e desvantagens embaixo do mapa.
+   As linhas são desenhadas por desenharLinhas() depois que a tela monta.
+   Posição na grade: --r/--n = linha e altura no computador; --rm = linha no celular. */
 .legenda{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--tx2);
   background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin:12px 0 4px}
-.mapa{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:44px 28px;
-  align-items:center;justify-items:center;margin:20px 0 10px;padding:6px 0}
+.mapa{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr) minmax(0,1.15fr);
+  gap:12px 64px;align-items:center;margin:20px 0 10px;padding:6px 0}
 .mapaLinhas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
-.mapaLinhas line{stroke:var(--line);stroke-width:2.5}
-.mapaLinhas line.lv-ok{stroke:var(--ok)}
-.mapaLinhas line.lv-restr{stroke:var(--aviso)}
-.mapaLinhas line.lv-nao{stroke:var(--erro);stroke-dasharray:7 6}
-.mapaLinhas line.on{stroke-width:4.5}
-.noCentro,button.noMapa{position:relative;z-index:1;width:100%;max-width:230px;display:flex;flex-direction:column;
-  align-items:center;gap:5px;text-align:center;padding:10px 12px;border-radius:12px;background:var(--panel);
+.mapaLinhas path{fill:none;stroke:var(--line);stroke-width:2.5}
+.mapaLinhas path.lv-ok{stroke:var(--ok)}
+.mapaLinhas path.lv-restr{stroke:var(--aviso)}
+.mapaLinhas path.lv-nao{stroke:var(--erro);stroke-dasharray:7 6}
+.mapaLinhas path.on{stroke-width:4.5}
+.noCentro{grid-column:1;grid-row:1/span var(--n)}
+.grpNivel{grid-column:2;grid-row:var(--r)/span var(--n)}
+button.noMapa{grid-column:3;grid-row:var(--r)}
+.noCentro,.grpNivel,button.noMapa{position:relative;z-index:1;width:100%;display:flex;flex-direction:column;
+  align-items:center;gap:4px;text-align:center;padding:10px 12px;border-radius:12px;background:var(--panel);
   border:2px solid var(--line);color:var(--tx);font-weight:400;font-size:13px}
-.noCentro{border-width:3px;max-width:250px}
-button.noMapa{cursor:pointer;transition:border-color .12s ease}
+.noCentro{border-width:3px}
+.grpNivel{border-radius:22px;padding:8px 12px;font-weight:600}
+.grpNivel.ok{border-color:var(--ok);background:var(--ok-fundo);color:var(--ok-tx)}
+.grpNivel.restr{border-color:var(--aviso);background:var(--aviso-fundo);color:var(--aviso-tx)}
+.grpNivel.nao{border-color:var(--erro);background:var(--erro-fundo);color:var(--erro-tx);border-style:dashed}
+.grpNivel .qt{font-size:11.5px;font-weight:400;opacity:.85}
+button.noMapa{flex-direction:row;justify-content:space-between;text-align:left;gap:10px;padding:9px 12px;
+  border-left-width:5px;cursor:pointer;transition:border-color .12s ease}
+button.noMapa[data-nivel=ok]{border-left-color:var(--ok)}
+button.noMapa[data-nivel=restr]{border-left-color:var(--aviso)}
+button.noMapa[data-nivel=nao]{border-left-color:var(--erro)}
 button.noMapa:hover{background:var(--panel);border-color:var(--tx2)}
 button.noMapa.on{border-color:var(--marca);background:var(--marca-fundo);box-shadow:0 0 0 3px rgba(240,120,0,.22)}
+button.noMapa .preco{text-align:right;white-space:nowrap}
 .noCentro .nm,.noMapa .nm{font-size:15px;font-weight:700;line-height:1.25}
 .rot{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2)}
 .preco{font-size:12px;color:var(--tx2);line-height:1.5;font-variant-numeric:tabular-nums}
@@ -241,16 +255,17 @@ button,.chip,.tab,summary{touch-action:manipulation}
   .card .val{font-size:20px}
   table{font-size:12px}
 
-  /* mapa mental: nós mais compactos; detalhes um embaixo do outro */
-  .mapa{gap:34px 8px}
-  .noCentro,button.noMapa{padding:8px 5px;font-size:12px}
+  /* mapa de fluxo de cima para baixo: quem sai no topo, níveis numa coluna
+     estreita à esquerda (afastada para caber a linha-tronco), substitutos à direita */
+  .mapa{grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr);gap:10px 26px;padding-left:22px}
+  .noCentro{grid-column:1/-1;grid-row:1;margin-left:-22px;width:calc(100% + 22px);margin-bottom:12px}
+  .grpNivel{grid-column:1;grid-row:var(--rm)/span var(--n);padding:7px 6px;font-size:12px}
+  button.noMapa{grid-column:2;grid-row:var(--rm);flex-direction:column;align-items:flex-start;gap:3px;padding:8px 9px}
+  button.noMapa .preco{text-align:left}
   .noCentro .nm,.noMapa .nm{font-size:13px}
   .preco{font-size:11px}
   .ramo{grid-template-columns:1fr}
-  input.kgs{padding:10px 6px}
 }
-/* celular estreito: no nó fica só o ícone do nível (a legenda explica) */
-@media(max-width:600px){ .nivel .nt{display:none} }
 </style>
 </head>
 <body>
@@ -275,12 +290,15 @@ button,.chip,.tab,summary{touch-action:manipulation}
   <select id="embalagem"><option>A Granel</option><option>Ensacado</option></select>
 
   <h3 id="hcot">Cotações do Dia</h3>
-  <label style="margin-top:0">Digitar os preços em</label>
-  <div class="unid" id="unidPreco" role="group" aria-label="Unidade dos preços"></div>
+  <div id="unidSaco">
+    <label style="margin-top:0" id="rotUnid"></label>
+    <div class="unid" id="unidPreco" role="group" aria-label="Unidade dos preços de milho e sorgo"></div>
+  </div>
   <div id="precos"></div>
   <p style="font-size:11.5px;color:var(--tx2);margin-top:12px;line-height:1.6">
     Deixe 0 se não houver cotação. O sistema não calcula custo sem preço.
-    O peso do saco de cada commodity pode ser ajustado; as contas usam sempre R$/tonelada.</p>
+    Milho e sorgo podem ser digitados por saco de 60 kg; as demais commodities são
+    sempre em R$/tonelada. As contas usam sempre R$/tonelada.</p>
 
   <h3>Dados</h3>
   <p style="font-size:11.5px;color:var(--tx2);line-height:1.6" id="infoDados"></p>
@@ -416,50 +434,42 @@ function card(lab,val,dl,cls,m){
 /* Preços: o estado (precos) fica SEMPRE em R$/tonelada, que é o que as contas
    usam. A chave saco/tonelada só muda a unidade em que se digita e se lê;
    a conversão está em calculos.js (precoTonDeSaco / precoSacoDeTon). */
-let unidPreco="t";                                   // "t" ou "sc"
-/* peso do saco: ponto de partida editável (Nathan, 27/10/2026), não regra de mercado */
-const KG_SACO_INI={"Milho":60,"Sorgo":60};
-const KG_SACO_OUTROS=50;
-const kgSaco={}; COMS.forEach(c=>kgSaco[c]=KG_SACO_INI[c]||KG_SACO_OUTROS);
+let unidPreco="t";                                   // "t" ou "sc" (só vale para quem tem saco)
+/* Saco só para milho e sorgo (Nathan, 29/10/2026); o resto é sempre R$/tonelada.
+   Peso do saco FIXO em 60 kg (Nathan, 30/10/2026: "a saca de milho e de sorgo já é
+   de 60 kg"); não é editável na tela. */
+const kgSaco={"Milho":60,"Sorgo":60};
+function temSaco(c){return c in kgSaco}
+function emSaco(c){return unidPreco==="sc"&&temSaco(c)}
 function fmtKg(k){return fmt(k,Number.isInteger(k)?0:2)}
 function arr2(x){return x===null?"":Math.round(x*100)/100}
-function precoNaUnid(c){return unidPreco==="t"?precos[c]:precoSacoDeTon(precos[c],kgSaco[c])}
+function precoNaUnid(c){return emSaco(c)?precoSacoDeTon(precos[c],kgSaco[c]):precos[c]}
 function convTxt(c){
   if(!precos[c]) return "sem cotação";
-  return unidPreco==="t"
-    ? `= ${brl(precoSacoDeTon(precos[c],kgSaco[c]))} por saco de ${fmtKg(kgSaco[c])} kg`
-    : `= ${brl(precos[c])} por tonelada`;
+  if(!temSaco(c)) return "";
+  return emSaco(c)
+    ? `= ${brl(precos[c])} por tonelada`
+    : `= ${brl(precoSacoDeTon(precos[c],kgSaco[c]))} por saco de ${fmtKg(kgSaco[c])} kg`;
 }
 function buildPrecos(){
+  const nomesSaco=COMS.filter(temSaco);
+  document.getElementById("unidSaco").style.display=nomesSaco.length?"":"none";
+  document.getElementById("rotUnid").textContent=`${nomesSaco.join(" e ")}: digitar o preço em`;
   document.getElementById("unidPreco").innerHTML=[["sc","Saco"],["t","Tonelada"]].map(([u,n])=>
     `<button class="${unidPreco===u?"on":""}" aria-pressed="${unidPreco===u}" onclick="setUnid('${u}')">${n}</button>`).join("");
   document.getElementById("precos").innerHTML=COMS.map((c,i)=>
-    `<label for="pr-${i}">${c} <span class="mut">(R$/${unidPreco==="t"?"ton":"saco"})</span></label>
-    <div class="precoLinha">
-      <input type="number" class="pr" id="pr-${i}" min="0" step="${unidPreco==="t"?50:1}"
-        value="${arr2(precoNaUnid(c))}" oninput="setPreco(${i},this.value)">
-      <span class="kg">saco <input type="number" class="kgs" min="1" step="1" value="${kgSaco[c]}"
-        aria-label="Peso do saco de ${c} em kg" onchange="setKg(${i},this)"> kg</span>
-    </div>
+    `<label for="pr-${i}">${c} <span class="mut">(R$/${emSaco(c)?`saco de ${fmtKg(kgSaco[c])} kg`:"ton"})</span></label>
+    <input type="number" class="pr" id="pr-${i}" min="0" step="${emSaco(c)?1:50}"
+      value="${arr2(precoNaUnid(c))}" oninput="setPreco(${i},this.value)">
     <div class="conv" id="cv-${i}">${convTxt(c)}</div>`).join("");
 }
 function setUnid(u){unidPreco=u; buildPrecos(); render()}
 /* digitação: só atualiza a linha de conversão; o campo não é redesenhado */
 function setPreco(i,txt){
   const c=COMS[i], x=parseFloat(txt), v=(isFinite(x)&&x>0)?x:0;
-  precos[c]=unidPreco==="t"?v:precoTonDeSaco(v,kgSaco[c]);
+  precos[c]=emSaco(c)?precoTonDeSaco(v,kgSaco[c]):v;
   document.getElementById("cv-"+i).textContent=convTxt(c);
   render();
-}
-/* Mudar o peso mantém o preço na unidade em que se está digitando:
-   em "saco", o R$/saco fica e a tonelada é recalculada; em "tonelada", o contrário. */
-function setKg(i,el){
-  const c=COMS[i], x=parseFloat(el.value);
-  if(!(isFinite(x)&&x>0)){el.value=kgSaco[c];
-    document.getElementById("cv-"+i).textContent=`⚠ Peso inválido. Mantido ${fmtKg(kgSaco[c])} kg.`;return}
-  if(unidPreco==="sc"){const sc=precoSacoDeTon(precos[c],kgSaco[c]); kgSaco[c]=x; precos[c]=precoTonDeSaco(sc,x)}
-  else kgSaco[c]=x;
-  buildPrecos(); render();
 }
 
 /* ================= ABA 1 ================= */
@@ -468,11 +478,18 @@ function resumo(lista,total){
   const t=lista.join(", ");
   return `${lista.length} de ${total}: ${t}`;
 }
+/* chip "Todos": marca tudo; se já está tudo marcado, desmarca tudo */
+function chipTodos(tudo,fn,p){
+  return `<div class="chip ${p?"p ":""}todos ${tudo?"on":""}" onclick="${fn}">${tudo?"☑":"☐"} Todos</div>`;
+}
+function parsVisiveis(){
+  return P.map(p=>p[0]).filter(n=>!n.startsWith("Energia Metabolizável")||n===paramEnergia());
+}
 function renderSel(){
-  document.getElementById("selCom").innerHTML=COMS.map(c=>
+  document.getElementById("selCom").innerHTML=chipTodos(sel.length===COMS.length,"tgTodosSel()")+COMS.map(c=>
     `<div class="chip ${sel.includes(c)?"on":""}" onclick="tgSel('${c}')">${sel.includes(c)?"☑":"☐"} ${c}</div>`).join("");
-  const lp=P.map(p=>p[0]).filter(n=>!n.startsWith("Energia Metabolizável")||n===paramEnergia());
-  document.getElementById("selPar").innerHTML=lp.map(n=>
+  const lp=parsVisiveis();
+  document.getElementById("selPar").innerHTML=chipTodos(lp.every(n=>pars.includes(n)),"tgTodosPar()",true)+lp.map(n=>
     `<div class="chip p ${pars.includes(n)?"on":""}" onclick="tgPar('${n.replace(/'/g,"\\'")}')">${n}</div>`).join("");
   document.getElementById("cCom").textContent=resumo(sel,COMS.length);
   document.getElementById("cPar").textContent=resumo(pars.filter(n=>lp.includes(n)),lp.length);
@@ -480,6 +497,9 @@ function renderSel(){
 function tgSel(c){ sel.includes(c)?sel=sel.filter(x=>x!==c):sel.push(c);
   sel=COMS.filter(x=>sel.includes(x)); refC=avalC=null; render()}
 function tgPar(n){ pars.includes(n)?pars=pars.filter(x=>x!==n):pars.push(n); render()}
+function tgTodosSel(){ sel=sel.length===COMS.length?[]:[...COMS]; refC=avalC=null; render()}
+function tgTodosPar(){ const lp=parsVisiveis();
+  pars=lp.every(n=>pars.includes(n))?[]:lp; render()}
 
 function renderEcon(){
   document.getElementById("tEcon").textContent=
@@ -582,25 +602,34 @@ function selTroca(para){
   const d=document.getElementById("fluxDet");
   if(fluxSel&&d&&d.getBoundingClientRect().top>window.innerHeight-120) d.scrollIntoView({behavior:"smooth",block:"start"});
 }
-/* posição de cada nó na grade 3×3 (linha/coluna); o centro (2/2) é de quem sai */
-const POS_MAPA={1:[[2,3]],2:[[2,1],[2,3]],3:[[1,1],[1,3],[3,2]],4:[[1,1],[1,3],[3,1],[3,3]]};
-const POS_MAPA_N=[[1,1],[1,3],[3,1],[3,3],[2,1],[2,3],[1,2],[3,2]];
+/* preço no nó: saco só para milho e sorgo; tonelada para todos */
 function precoNo(c){
   if(!precos[c]) return `<span class="preco">sem cotação</span>`;
-  return `<span class="preco"><b>${brl(precoSacoDeTon(precos[c],kgSaco[c]))}</b>/saco ${fmtKg(kgSaco[c])} kg<br>
-    <b>${brl(precos[c])}</b>/t</span>`;
+  return `<span class="preco">`+
+    (temSaco(c)?`<b>${brl(precoSacoDeTon(precos[c],kgSaco[c]))}</b>/saco ${fmtKg(kgSaco[c])} kg<br>`:"")+
+    `<b>${brl(precos[c])}</b>/t</span>`;
 }
-/* linhas do centro até cada nó, medidas depois que a tela monta (e ao redimensionar) */
+/* Linhas do fluxo (sai → nível → entra), medidas depois que a tela monta (e ao
+   redimensionar). Se o destino está à direita: curva da borda direita até a
+   esquerda. Se está embaixo (celular): tronco vertical pela esquerda + ramo reto. */
 function desenharLinhas(){
   const mapa=document.getElementById("mapa"), svg=document.getElementById("mapaLinhas");
   if(!mapa||!svg||!mapa.offsetParent) return;          // aba escondida: desenha ao abrir
   const b=mapa.getBoundingClientRect();
-  const meio=el=>{const r=el.getBoundingClientRect();return[r.left-b.left+r.width/2,r.top-b.top+r.height/2]};
-  const [cx,cy]=meio(document.getElementById("noCentro"));
+  const caixa=el=>{const r=el.getBoundingClientRect();
+    return{l:r.left-b.left,r:r.right-b.left,bo:r.bottom-b.top,y:r.top-b.top+r.height/2}};
+  const liga=(de,para,cls)=>{const a=caixa(de),z=caixa(para);let d;
+    if(z.l>=a.r-2){const mx=(a.r+z.l)/2; d=`M${a.r},${a.y} C${mx},${a.y} ${mx},${z.y} ${z.l},${z.y}`}
+    else{const x=a.l+11; d=`M${x},${a.bo} V${z.y} H${z.l}`}
+    return `<path d="${d}" class="${cls}"/>`};
+  const centro=document.getElementById("noCentro");
+  const grupos=[...mapa.querySelectorAll(".grpNivel")].reverse();   // o mais curto por cima
   svg.setAttribute("viewBox",`0 0 ${b.width} ${b.height}`);
-  svg.innerHTML=[...mapa.querySelectorAll(".noMapa")].map(n=>{const [x,y]=meio(n);
-    return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"
-      class="lv-${n.dataset.nivel} ${n.classList.contains("on")?"on":""}"/>`}).join("");
+  svg.innerHTML=grupos.map(g=>{const nv=g.dataset.nivel;
+    const nos=[...mapa.querySelectorAll(`.noMapa[data-nivel="${nv}"]`)];
+    const aberto=nos.some(n=>n.classList.contains("on"))?"on":"";
+    return liga(centro,g,`lv-${nv} ${aberto}`)+
+      nos.map(n=>liga(g,n,`lv-${nv} ${n.classList.contains("on")?"on":""}`)).join("")}).join("");
 }
 window.addEventListener("resize",desenharLinhas);
 
@@ -629,19 +658,26 @@ function renderFluxo(){
   const caixa=(itens,vazio)=>itens.length?`<ul>${itens.map(li).join("")}</ul>`:`<span class="mut">${vazio}</span>`;
 
   if(!trocas.some(s=>s.para===fluxSel)) fluxSel=null;
-  const pos=POS_MAPA[trocas.length]||POS_MAPA_N;
-  h+=`<div class="mapa" id="mapa"><svg class="mapaLinhas" id="mapaLinhas" aria-hidden="true"></svg>
-    <div class="noCentro" id="noCentro" style="grid-area:2/2;border-color:${corDe(fluxCom)}">
+  /* uma linha da grade por substituto, agrupados por nível (já vêm ordenados) */
+  const grupos=Object.keys(NIVEL).map(nv=>({nv,itens:trocas.filter(s=>nivelDe(s)[0]===nv)}))
+    .filter(g=>g.itens.length);
+  h+=`<div class="mapa" id="mapa" style="--n:${trocas.length}"><svg class="mapaLinhas" id="mapaLinhas" aria-hidden="true"></svg>
+    <div class="noCentro" id="noCentro" style="border-color:${corDe(fluxCom)}">
       <span class="rot">Sai da ração</span>
       <span class="nm" style="color:${corDe(fluxCom)}">${fluxCom}</span>${precoNo(fluxCom)}</div>`;
-  trocas.forEach((s,k)=>{
-    const [nv]=nivelDe(s), N=NIVEL[nv], [lin,col]=pos[k%pos.length], on=s.para===fluxSel;
-    h+=`<button class="noMapa ${on?"on":""}" data-nivel="${nv}" style="grid-area:${lin}/${col}"
-      aria-pressed="${on}" onclick="selTroca('${s.para.replace(/'/g,"\\'")}')">
-      <span class="rot">Entra</span>
-      <span class="nm" style="color:${corDe(s.para)}">${s.para}</span>
-      <span class="nivel ${nv}" title="${N.txt}">${N.ic}<span class="nt"> ${N.txt}</span></span>
-      ${precoNo(s.para)}</button>`;
+  let lin=1;
+  grupos.forEach(g=>{
+    const N=NIVEL[g.nv], n=g.itens.length;
+    h+=`<div class="grpNivel ${g.nv}" data-nivel="${g.nv}" style="--r:${lin};--rm:${lin+1};--n:${n}">
+      <span>${N.ic} ${N.txt}</span><span class="qt">${n} ${n===1?"opção":"opções"}</span></div>`;
+    g.itens.forEach((s,k)=>{
+      const on=s.para===fluxSel;
+      h+=`<button class="noMapa ${on?"on":""}" data-nivel="${g.nv}" style="--r:${lin+k};--rm:${lin+k+1}"
+        aria-pressed="${on}" aria-label="${s.para} — ${N.txt}" onclick="selTroca('${s.para.replace(/'/g,"\\'")}')">
+        <span><span class="rot">Entra</span><br><span class="nm" style="color:${corDe(s.para)}">${s.para}</span></span>
+        ${precoNo(s.para)}</button>`;
+    });
+    lin+=n;
   });
   h+=`</div><p class="dica">${fluxSel?"Toque de novo no ingrediente para fechar os detalhes."
     :"Toque num ingrediente do mapa para ver quando usar, vantagens e desvantagens."}</p>`;
